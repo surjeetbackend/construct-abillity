@@ -2,11 +2,10 @@ const express = require('express');
 const router = express.Router();
 const quote=require('../model/GetQoute');
 const service=require('../model/getservice');
-
-
+const sendEmail = require('../util/mail'); 
 const { google } = require('googleapis');
 
-console.log("📦 Contactus route loaded");
+console.log("Contactus route loaded");
 
 
 const auth = new google.auth.GoogleAuth({
@@ -35,9 +34,9 @@ const appendToSheet = async (range, values) => {
 
 router.post('/submit-quote', async (req, res) => {
   try {
-    const { customer_name,customer_number, customer_email,Massage } = req.body;
+    const { customer_name,customer_number, customer_email,Massage, subject} = req.body;
 
-    if (!customer_name || ! customer_number || !customer_email || !Massage) {
+    if (!customer_name || ! customer_number || !customer_email || !Massage || !subject) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -45,11 +44,24 @@ router.post('/submit-quote', async (req, res) => {
         customer_name:customer_name.trim(),
         customer_number:customer_number.trim(),
         customer_email:customer_email.trim(),
-        Massage:Massage.trim()
+        Massage:Massage.trim(),
+        subject:subject.trim(),
     })
-    await dbadd.save();
 
-    await appendToSheet('GET_QUOTE!A1:d', [customer_name.trim(), customer_number.trim(), customer_email.trim(), Massage.trim()]);
+    await dbadd.save();
+     await sendEmail(
+      customer_email,
+      'Thanks for connect with us -!',
+      `<h3>Thank you ${customer_name}for connect to AMSOM Constructability for 
+            <hr>subject:<i>${subject}<i>
+            <hr>Massage:${Massage}
+            <hr>contact:${customer_number}
+      !</h3><p>You’ll now receive updates from us.</p>`
+    );
+    console.log(' Email sent'); 
+
+
+    await appendToSheet('GET_QUOTE!A1:d', [customer_name.trim(), customer_number.trim(), customer_email.trim(), Massage.trim(), subject.trim()]);
     res.status(200).json({ message: 'Contact saved successfully' });
   } catch (err) {
     console.error(' Google Sheets Error:', err.message);
